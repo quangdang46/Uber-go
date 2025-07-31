@@ -14,10 +14,15 @@ var (
 func main() {
 	log.Println("Starting API Gateway")
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello from API Gateway"))
-	})
+	mux := http.NewServeMux()
 
-	http.ListenAndServe(httpAddr, nil)
+	mux.HandleFunc("POST /trip/preview", HandleTripPreview)
+
+	server := &http.Server{
+		Handler: mux,
+		Addr:    httpAddr,
+	}
+	if err := server.ListenAndServe(); err != nil {
+		log.Printf("HTTP server error:%v", err)
+	}
 }
