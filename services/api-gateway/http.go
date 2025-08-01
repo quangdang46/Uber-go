@@ -8,7 +8,7 @@ import (
 	"ride-sharing/shared/contracts"
 )
 
-func HandleTripPreview(w http.ResponseWriter, r *http.Request) {
+func handleTripPreview(w http.ResponseWriter, r *http.Request) {
 
 	var reqBody previewTripRequest
 

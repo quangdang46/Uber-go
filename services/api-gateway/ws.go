@@ -16,7 +16,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func HandleDriversWebSocket(w http.ResponseWriter, r *http.Request) {
+func handleDriversWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
@@ -86,7 +86,7 @@ func HandleDriversWebSocket(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func HandleRidersWebSocket(w http.ResponseWriter, r *http.Request) {
+func handleRidersWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
@@ -100,7 +100,7 @@ func HandleRidersWebSocket(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		log.Println("No userId found")
 		return
-	}
+	} 
 
 	for {
 		_, message, err := conn.ReadMessage()
