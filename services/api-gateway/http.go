@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"ride-sharing/shared/contracts"
 )
@@ -23,10 +25,26 @@ func HandleTripPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "user id is required", http.StatusBadRequest)
 		return
 	}
+	jsonBody, _ := json.Marshal(reqBody)
+	reader := bytes.NewReader(jsonBody)
 
+	// TODO: Call trip service
+	resp, err := http.Post("http://trip-service:8083/preview", "application/json", reader)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	var respBody any
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		http.Error(w, "failed to parse JSON data from trip service", http.StatusBadRequest)
+		return
+	}
 	// TODO: call grpc to trip service
 
-	response := contracts.APIResponse{Data: "ok"}
+	response := contracts.APIResponse{Data: respBody}
 
 	WriteJSON(w, http.StatusCreated, response)
 }
