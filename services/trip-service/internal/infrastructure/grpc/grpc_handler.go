@@ -30,7 +30,7 @@ func (h *gRPCHandler) PreviewTrip(ctx context.Context, req *pb.PreviewTripReques
 		Longitude: destination.Longitude,
 	}
 
-	t, err := h.service.GetRoute(ctx, pickupCoordinate, destinationCoordinate)
+	route, err := h.service.GetRoute(ctx, pickupCoordinate, destinationCoordinate)
 
 	if err != nil {
 		log.Println(err)
@@ -39,20 +39,22 @@ func (h *gRPCHandler) PreviewTrip(ctx context.Context, req *pb.PreviewTripReques
 
 	userID := req.GetUserID()
 
-	estimatedFares := h.service.EstimatePackagesPriceWithRoute(t)
-	fares, err := h.service.GenerateTripFares(ctx, estimatedFares, userID)
+	estimatedFares := h.service.EstimatePackagesPriceWithRoute(route)
+	fares, err := h.service.GenerateTripFares(ctx, estimatedFares, userID, route)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to generate the ride fares %v", err)
 
 	}
 
 	return &pb.PreviewTripResponse{
-		Route:     t.ToProto(),
+		Route:     route.ToProto(),
 		RideFares: domain.ToRideFaresProto(fares),
 	}, nil
 
 }
 
+
+/////////////////
 func NewGRPCHandler(server *grpc.Server, service domain.TripService) *gRPCHandler {
 	handler := &gRPCHandler{
 		service: service,
@@ -61,4 +63,28 @@ func NewGRPCHandler(server *grpc.Server, service domain.TripService) *gRPCHandle
 	pb.RegisterTripServiceServer(server, handler)
 
 	return handler
+}
+/////////////////
+
+func (h *gRPCHandler) CreateTrip(ctx context.Context, req *pb.CreateTripRequest) (*pb.CreateTripResponse, error) {
+
+	fareID := req.GetRideFareID()
+	userID := req.GetUserID()
+
+	rideFare, err := h.service.GetAndValidateFare(ctx, fareID, userID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to created fare %v", err)
+
+	}
+
+	trip, err := h.service.CreateTrip(ctx, rideFare)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to created trip %v", err)
+
+	}
+
+	return &pb.CreateTripResponse{
+		TripID: string(trip.ID.Hex()),
+	}, nil
+
 }
