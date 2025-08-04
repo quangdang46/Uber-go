@@ -76,3 +76,10 @@ func handleTripStart(w http.ResponseWriter, r *http.Request) {
 
 	WriteJSON(w, http.StatusCreated, response)
 }
+
+
+
+func handleDriverRegister(w http.ResponseWriter, r *http.Request) {}
+
+
+func handleDriverUnRegister(w http.ResponseWriter, r *http.Request) {}

@@ -38,3 +38,9 @@ func (c *startTripRequest) toProto() *pb.CreateTripRequest {
 		UserID:     c.UserID,
 	}
 }
+
+
+type driverRegisterRequest struct {
+
+}
+
