@@ -39,6 +39,37 @@ func NewRabbitMQ(uri string) (*RabbitMQ, error) {
 
 }
 
+type MessageHandler func(ctx context.Context, msg amqp.Delivery) error
+
+
+func (r *RabbitMQ) ConsumeMessages(queueName string,handler MessageHandler) error {
+	msgs, err := r.Channel.Consume(
+		queueName,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+ 
+	if err != nil {
+		return fmt.Errorf("failed to consume messages: %v", err)
+	}
+
+	go func() {
+		for msg := range msgs {
+			if err := handler(context.Background(), msg); err != nil {
+				log.Printf("failed to handle message: %v", err)
+				continue
+			}
+		}
+	}()
+
+	return nil
+
+}
+
 func (r *RabbitMQ) PublishMessage(ctx context.Context, routingKey string, message string) error {
 	return r.Channel.PublishWithContext(ctx,
 		"",
@@ -48,6 +79,7 @@ func (r *RabbitMQ) PublishMessage(ctx context.Context, routingKey string, messag
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(message),
+			DeliveryMode: amqp.Persistent,
 		},
 	)
 }
@@ -55,7 +87,7 @@ func (r *RabbitMQ) PublishMessage(ctx context.Context, routingKey string, messag
 func (r *RabbitMQ) setupExchangesAndQueues() error {
 	_, err := r.Channel.QueueDeclare(
 		"hello", // name
-		false,   // durable
+		true,   // durable
 		false,   // autoDelete
 		false,   // exclusive
 		false,   // noWait

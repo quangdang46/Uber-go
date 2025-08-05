@@ -11,7 +11,7 @@ import (
 	"ride-sharing/shared/env"
 	"ride-sharing/shared/messages"
 	"syscall"
-
+	"ride-sharing/services/driver-service/internal/events"
 	grpcserver "google.golang.org/grpc"
 )
 
@@ -46,6 +46,14 @@ func main() {
 	// starting the gRpc server
 	grpcServer := grpcserver.NewServer()
 	grpcHandler.NewGRPCHandler(grpcServer, _service)
+
+	go func() {
+		if err := events.NewTripConsumer(rabbit).Listen(); err != nil {
+			log.Printf("failed to listen to trip created: %v", err)
+			cancel()
+		}
+	}()
+
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {

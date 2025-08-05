@@ -1,8 +1,9 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: rabbitmq
 spec:
+  serviceName: "rabbitmq"
   replicas: 1
   selector:
     matchLabels:
@@ -18,33 +19,29 @@ spec:
           ports:
             - containerPort: 5672 # AMQP port
             - containerPort: 15672 # Management UI port
-
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
-            initialDelaySeconds: 20     # <-- Đợi 20s trước khi kiểm tra lần đầu
-            timeoutSeconds: 10          # <-- Tăng timeout từ 5 lên 10s
-            periodSeconds: 10
-            failureThreshold: 10
+            initialDelaySeconds: 120  # chờ RabbitMQ khởi động xong (~2 phút)
+            periodSeconds: 15
+            timeoutSeconds: 20
+            failureThreshold: 5
 
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
-            initialDelaySeconds: 30
-            timeoutSeconds: 15
-            periodSeconds: 20
+            initialDelaySeconds: 180  # chờ lâu hơn readiness
+            periodSeconds: 30
+            timeoutSeconds: 20
             failureThreshold: 5
-
 
           resources:
             requests:
               memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "1024Mi"  # hoặc cao hơn: 1536Mi, 2048Mi nếu cần
-              cpu: "500m"
-
-
+              memory: "512Mi"
+              cpu: "250m"
           env:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
@@ -56,6 +53,19 @@ spec:
                 secretKeyRef:
                   name: rabbitmq-credentials
                   key: password
+            - name: RABBITMQ_MNESIA_BASE
+              value: /var/lib/rabbitmq/mnesia
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+  volumeClaimTemplates:
+  - metadata:
+      name: rabbitmq-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
