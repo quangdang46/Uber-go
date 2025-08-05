@@ -4,9 +4,13 @@ load('ext://restart_process', 'docker_build_with_restart')
 ### K8s Config ###
 
 # Uncomment to use secrets
-# k8s_yaml('./infra/development/k8s/secrets.yaml')
+k8s_yaml('./infra/development/k8s/secrets.yaml')
 
 k8s_yaml('./infra/development/k8s/app-config.yaml')
+
+k8s_yaml('./infra/development/k8s/rabbitmq-deployment.yaml')
+k8s_resource('rabbitmq', port_forwards=['5672', '15672'], labels='tooling')
+
 
 ### End of K8s Config ###
 ### API Gateway ###
