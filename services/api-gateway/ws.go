@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
+	"ride-sharing/services/api-gateway/grpc_clients"
 	"ride-sharing/shared/contracts"
-	"ride-sharing/shared/util"
+	"ride-sharing/shared/proto/driver"
 
 	"github.com/gorilla/websocket"
 )
@@ -16,101 +16,98 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func handleDriversWebSocket(w http.ResponseWriter, r *http.Request) {
+func handleRidersWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
-
 	if err != nil {
-		log.Printf("Websocket upgrade failed %v", err)
+		log.Printf("WebSocket upgrade failed: %v", err)
 		return
 	}
 
 	defer conn.Close()
 
 	userID := r.URL.Query().Get("userID")
-
 	if userID == "" {
-		log.Println("No userId found")
+		log.Println("No user ID provided")
+		return
+	}
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Printf("Error reading message: %v", err)
+			break
+		}
+
+		log.Printf("Received message: %s", message)
+	}
+}
+
+func handleDriversWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade failed: %v", err)
+		return
+	}
+
+	defer conn.Close()
+
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		log.Println("No user ID provided")
 		return
 	}
 
 	packageSlug := r.URL.Query().Get("packageSlug")
-
 	if packageSlug == "" {
-		log.Println("No userId found")
+		log.Println("No package slug provided")
 		return
 	}
 
-	type Driver struct {
-		Id             string `json:"id"`
-		Name           string `json:"name"`
-		ProfilePicture string `json:"profilePicture"`
-		CarPlate       string `json:"carPlate"`
-		PackageSlug    string `json:"packageSlug"`
-	}
+	ctx := r.Context()
 
-	driver := Driver{
-		Id:             userID,
-		Name:           "QD",
-		ProfilePicture: util.GetRandomAvatar(1),
-		CarPlate:       "AVCCC122",
-		PackageSlug:    packageSlug,
-	}
-
-	driverData, err := json.Marshal(driver)
+	driverService, err := grpc_clients.NewDriverServiceClient()
 	if err != nil {
-		log.Printf("Failed to marshal driver data: %v", err)
+		log.Fatal(err)
+	}
+
+	// Closing connections
+	defer func() {
+		driverService.Client.UnRegisterDriver(ctx, &driver.RegisterDriverRequest{
+			DriverID:    userID,
+			PackageSlug: packageSlug,
+		})
+
+		driverService.Close()
+		
+		log.Println("Driver unregistered: ", userID)
+	}()
+
+	driverData, err := driverService.Client.RegisterDriver(ctx, &driver.RegisterDriverRequest{
+		DriverID:    userID,
+		PackageSlug: packageSlug,
+	})
+	if err != nil {
+		log.Printf("Error registering driver: %v", err)
 		return
 	}
 
-	msg := contracts.WSDriverMessage{
+	msg := contracts.WSMessage{
 		Type: "driver.cmd.register",
-		Data: driverData,
+		Data: driverData.Driver,
 	}
 
 	if err := conn.WriteJSON(msg); err != nil {
-		log.Printf("WriteJSON failed %v", err)
+		log.Printf("Error sending message: %v", err)
 		return
-
 	}
 
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Error reading message %v", err)
-			return
+			log.Printf("Error reading message: %v", err)
+			break
 		}
 
-		log.Printf("Received reading message %s", message)
-
+		log.Printf("Received message: %s", message)
 	}
-
-}
-
-func handleRidersWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-
-	if err != nil {
-		log.Printf("Websocket upgrade failed %v", err)
-		return
-	}
-
-	defer conn.Close()
-	userID := r.URL.Query().Get("userID")
-
-	if userID == "" {
-		log.Println("No userId found")
-		return
-	} 
-
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			log.Printf("Error reading message %v", err)
-			return
-		}
-
-		log.Printf("Received reading message %s", message)
-
-	}
-
 }
