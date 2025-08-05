@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"ride-sharing/services/trip-service/internal/infrastructure/events"
 	"ride-sharing/services/trip-service/internal/infrastructure/grpc"
 	"ride-sharing/services/trip-service/internal/infrastructure/repository"
 	"ride-sharing/services/trip-service/internal/service"
@@ -47,8 +48,11 @@ func main() {
 	defer rabbit.Close()
 
 	// starting the gRpc server
+
+	publisher := events.NewTripEventPublisher(rabbit)
+
 	grpcServer := grpcserver.NewServer()
-	grpc.NewGRPCHandler(grpcServer, svc)
+	grpc.NewGRPCHandler(grpcServer, svc,publisher)
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
