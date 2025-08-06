@@ -11,7 +11,7 @@ import (
 
 type TripModel struct {
 	ID       primitive.ObjectID
-	UserId   string
+	UserID   string
 	Status   string
 	RideFare *RideFareModel
 	Driver   *pb.TripDriver
@@ -34,4 +34,15 @@ type TripService interface {
 	GenerateTripFares(ctx context.Context, fares []*RideFareModel, userID string, route *tripTypes.OsrmApiResponse) ([]*RideFareModel, error)
 
 	GetAndValidateFare(ctx context.Context, fareID, userID string) (*RideFareModel, error)
+}
+
+func (t *TripModel) ToProto() *pb.Trip {
+	return &pb.Trip{
+		Id:           t.ID.Hex(),
+		UserID:       t.UserID,
+		SelectedFare: t.RideFare.ToProto(),
+		Status:       t.Status,
+		Driver:       t.Driver,
+		Route:        t.RideFare.Route.ToProto(),
+	}
 }

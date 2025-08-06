@@ -2,7 +2,9 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"ride-sharing/shared/contracts"
 	"ride-sharing/shared/messages"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -18,10 +20,20 @@ func NewTripConsumer(rabbitmq *messages.RabbitMQ) *TripConsumer {
 	}
 }
 
-
 func (c *TripConsumer) Listen() error {
-	return c.rabbitmq.ConsumeMessages("hello", func(ctx context.Context, msg amqp.Delivery) error {
-		log.Println("received message: ", string(msg.Body))
+	return c.rabbitmq.ConsumeMessages(messages.FindAvailableDriversQueue, func(ctx context.Context, msg amqp.Delivery) error {
+		var tripEvent contracts.AmqpMessage
+		if err := json.Unmarshal(msg.Body, &tripEvent); err != nil {
+			return err
+		}
+		log.Println("received message: ", tripEvent)
+		var payload messages.TripEventData
+		if err := json.Unmarshal(tripEvent.Data, &payload); err != nil {
+			return err
+		}
+		log.Println("received message: ", payload)
+
+
 		return nil
 	})
 }

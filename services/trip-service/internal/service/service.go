@@ -27,7 +27,7 @@ func NewService(repo domain.TripRepository) *service {
 func (s *service) CreateTrip(ctx context.Context, fare *domain.RideFareModel) (*domain.TripModel, error) {
 	t := &domain.TripModel{
 		ID:       primitive.NewObjectID(),
-		UserId:   fare.UserID,
+		UserID:   fare.UserID,
 		Status:   "pending",
 		RideFare: fare,
 		Driver:   &trip.TripDriver{},

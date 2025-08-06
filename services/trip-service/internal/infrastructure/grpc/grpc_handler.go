@@ -48,9 +48,6 @@ func (h *gRPCHandler) PreviewTrip(ctx context.Context, req *pb.PreviewTripReques
 
 	}
 
-	if err := h.publisher.PublishTripCreated(ctx); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to publish trip created %v", err)
-	}
 
 	return &pb.PreviewTripResponse{
 		Route:     route.ToProto(),
@@ -88,6 +85,10 @@ func (h *gRPCHandler) CreateTrip(ctx context.Context, req *pb.CreateTripRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to created trip %v", err)
 
+	}
+
+	if err := h.publisher.PublishTripCreated(ctx, trip); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to publish trip created %v", err)
 	}
 
 	return &pb.CreateTripResponse{

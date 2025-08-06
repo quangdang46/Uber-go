@@ -6,18 +6,20 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"ride-sharing/services/driver-service/internal/events"
 	grpcHandler "ride-sharing/services/driver-service/internal/grpc"
 	"ride-sharing/services/driver-service/internal/service"
 	"ride-sharing/shared/env"
 	"ride-sharing/shared/messages"
 	"syscall"
-	"ride-sharing/services/driver-service/internal/events"
+
 	grpcserver "google.golang.org/grpc"
 )
 
 var GrpcAddr = ":9093"
 
 func main() {
+	log.Println("Starting driver-service...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -26,21 +28,28 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
+		log.Println("Received shutdown signal")
 		cancel()
 	}()
 
 	lis, err := net.Listen("tcp", GrpcAddr)
-
 	if err != nil {
-		log.Fatal("failed to listen %v", err)
+		log.Fatalf("Failed to listen on %s: %v", GrpcAddr, err)
 	}
 
-	rabbit, err := messages.NewRabbitMQ(env.GetString("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/"))
+	rabbitmqURI := env.GetString("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
+	log.Printf("Connecting to RabbitMQ at %s", rabbitmqURI)
 
+	rabbit, err := messages.NewRabbitMQ(rabbitmqURI)
 	if err != nil {
-		log.Fatal("failed to connect rabbitmq")
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
-	defer rabbit.Close()
+	defer func() {
+		log.Println("Closing RabbitMQ connection")
+		rabbit.Close()
+	}()
+
+	log.Println("Successfully connected to RabbitMQ")
 
 	_service := service.NewService()
 	// starting the gRpc server
@@ -48,24 +57,23 @@ func main() {
 	grpcHandler.NewGRPCHandler(grpcServer, _service)
 
 	go func() {
+		log.Println("Starting trip consumer...")
 		if err := events.NewTripConsumer(rabbit).Listen(); err != nil {
-			log.Printf("failed to listen to trip created: %v", err)
+			log.Printf("Failed to listen to trip created: %v", err)
 			cancel()
 		}
 	}()
 
-
 	go func() {
+		log.Printf("Starting gRPC server on %s", GrpcAddr)
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Printf("failed to server %v", err)
+			log.Printf("Failed to serve gRPC: %v", err)
 			cancel()
 		}
 	}()
 
 	<-ctx.Done()
 
-	log.Printf("shutting down the server")
-
+	log.Printf("Shutting down the server")
 	grpcServer.GracefulStop()
-
 }
