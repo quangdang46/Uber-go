@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"ride-sharing/services/api-gateway/grpc_clients"
@@ -64,6 +65,7 @@ func handleTripStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer tripService.Close()
+	fmt.Println("start trip",startTrip)
 
 	trip, err := tripService.Client.CreateTrip(r.Context(), startTrip.toProto())
 

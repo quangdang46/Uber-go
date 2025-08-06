@@ -22,19 +22,16 @@ spec:
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
-            initialDelaySeconds: 120  # chờ RabbitMQ khởi động xong (~2 phút)
-            periodSeconds: 15
-            timeoutSeconds: 20
-            failureThreshold: 5
-
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 15
+            failureThreshold: 3
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
-            initialDelaySeconds: 180  # chờ lâu hơn readiness
+            initialDelaySeconds: 60
             periodSeconds: 30
-            timeoutSeconds: 20
-            failureThreshold: 5
-
+            timeoutSeconds: 15
           resources:
             requests:
               memory: "512Mi"

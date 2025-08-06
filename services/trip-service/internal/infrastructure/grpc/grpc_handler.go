@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"ride-sharing/services/trip-service/internal/domain"
 	"ride-sharing/services/trip-service/internal/infrastructure/events"
@@ -74,20 +75,28 @@ func (h *gRPCHandler) CreateTrip(ctx context.Context, req *pb.CreateTripRequest)
 
 	fareID := req.GetRideFareID()
 	userID := req.GetUserID()
+	fmt.Println("fareID",fareID)
+	fmt.Println("userID",userID)
 
 	rideFare, err := h.service.GetAndValidateFare(ctx, fareID, userID)
+	fmt.Println("rideFare",rideFare)
+
 	if err != nil {
+		fmt.Println("error in get and validate fare",err)
 		return nil, status.Errorf(codes.Internal, "failed to created fare %v", err)
 
 	}
 
 	trip, err := h.service.CreateTrip(ctx, rideFare)
+
 	if err != nil {
+		fmt.Println("error in create trip",err)
 		return nil, status.Errorf(codes.Internal, "failed to created trip %v", err)
 
 	}
 
 	if err := h.publisher.PublishTripCreated(ctx, trip); err != nil {
+		fmt.Println("error in publish trip created",err)
 		return nil, status.Errorf(codes.Internal, "failed to publish trip created %v", err)
 	}
 

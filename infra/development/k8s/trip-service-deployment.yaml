@@ -16,7 +16,7 @@ spec:
         - name: trip-service
           image: ride-sharing/trip-service
           ports:
-            - containerPort: 9083
+            - containerPort: 9093
           resources:
             requests:
               memory: "64Mi"
@@ -24,33 +24,17 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
-          startupProbe:
-            tcpSocket:
-              port: 9093
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 30
-          readinessProbe:
-            tcpSocket:
-              port: 9093
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
-          livenessProbe:
-            tcpSocket:
-              port: 9093
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 3
           env:
             - name: RABBITMQ_URI
               valueFrom:
                 secretKeyRef:
                   name: rabbitmq-credentials
                   key: uri
+            - name: OSRM_API
+              valueFrom:
+                secretKeyRef:
+                  name: external-apis
+                  key: osrm
 ---
 apiVersion: v1
 kind: Service
@@ -61,6 +45,6 @@ spec:
     app: trip-service
   ports:
     - port: 9093
-      name: hrpc
+      name: grpc
       targetPort: 9093
   type: ClusterIP

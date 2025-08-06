@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: driver-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: driver-service
@@ -25,27 +25,6 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
-          startupProbe:
-            tcpSocket:
-              port: 9092
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 30
-          readinessProbe:
-            tcpSocket:
-              port: 9092
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
-          livenessProbe:
-            tcpSocket:
-              port: 9092
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 3
           env:
             - name: RABBITMQ_URI
               valueFrom:

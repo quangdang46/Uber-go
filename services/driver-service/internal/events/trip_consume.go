@@ -3,7 +3,9 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"ride-sharing/services/driver-service/internal/service"
 	"ride-sharing/shared/contracts"
 	"ride-sharing/shared/messages"
 
@@ -12,11 +14,13 @@ import (
 
 type TripConsumer struct {
 	rabbitmq *messages.RabbitMQ
+	service  *service.Service
 }
 
-func NewTripConsumer(rabbitmq *messages.RabbitMQ) *TripConsumer {
+func NewTripConsumer(rabbitmq *messages.RabbitMQ, service *service.Service) *TripConsumer {
 	return &TripConsumer{
 		rabbitmq: rabbitmq,
+		service:  service,
 	}
 }
 
@@ -33,7 +37,42 @@ func (c *TripConsumer) Listen() error {
 		}
 		log.Println("received message: ", payload)
 
+		switch msg.RoutingKey {
+		case contracts.TripEventCreated, contracts.TripEventDriverNotInterested:
+			return c.handleFindAndNotifyDriver(ctx, payload)
+		}
+
+		log.Println("received message: ", msg.RoutingKey)
 
 		return nil
 	})
+}
+
+func (c *TripConsumer) handleFindAndNotifyDriver(ctx context.Context, payload messages.TripEventData) error {
+	suitableIDs := c.service.FindAvailableDrivers(payload.Trip.SelectedFare.PackageSlug)
+	fmt.Println("suitableIDs: ", suitableIDs)
+	if len(suitableIDs) == 0 {
+		if err := c.rabbitmq.PublishMessage(ctx, contracts.TripEventNoDriversFound, contracts.AmqpMessage{
+			OwnerID: payload.Trip.UserID,
+		}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	suitableDriverID := suitableIDs[0]
+
+	marshalledEvent, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	if err := c.rabbitmq.PublishMessage(ctx, contracts.TripEventCreated, contracts.AmqpMessage{
+		OwnerID: suitableDriverID,
+		Data:    marshalledEvent,
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }

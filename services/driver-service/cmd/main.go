@@ -16,7 +16,7 @@ import (
 	grpcserver "google.golang.org/grpc"
 )
 
-var GrpcAddr = ":9093"
+var GrpcAddr = ":9092"
 
 func main() {
 	log.Println("Starting driver-service...")
@@ -58,7 +58,7 @@ func main() {
 
 	go func() {
 		log.Println("Starting trip consumer...")
-		if err := events.NewTripConsumer(rabbit).Listen(); err != nil {
+		if err := events.NewTripConsumer(rabbit, _service).Listen(); err != nil {
 			log.Printf("Failed to listen to trip created: %v", err)
 			cancel()
 		}
