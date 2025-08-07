@@ -41,22 +41,22 @@ func main() {
 		log.Fatalf("Failed to listen on %s: %v", GrpcAddr, err)
 	}
 
-	rabbitmqURI := env.GetString("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
+	rabbitmqURI := env.GetString("RABBITMQ_URI", "amqp://guest:guest@rabbitmq:5672/")
 	log.Printf("Connecting to RabbitMQ at %s", rabbitmqURI)
 
-	rabbit, err := messages.NewRabbitMQ(rabbitmqURI)
+	rabbitmq, err := messages.NewRabbitMQ(rabbitmqURI)
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
 	defer func() {
 		log.Println("Closing RabbitMQ connection")
-		rabbit.Close()
+		rabbitmq.Close()
 	}()
 
 	log.Println("Successfully connected to RabbitMQ")
 
 	// starting the gRpc server
-	publisher := events.NewTripEventPublisher(rabbit)
+	publisher := events.NewTripEventPublisher(rabbitmq)
 
 	grpcServer := grpcserver.NewServer()
 	grpc.NewGRPCHandler(grpcServer, svc, publisher)

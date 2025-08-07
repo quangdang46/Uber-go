@@ -37,16 +37,16 @@ func main() {
 		log.Fatalf("Failed to listen on %s: %v", GrpcAddr, err)
 	}
 
-	rabbitmqURI := env.GetString("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
+	rabbitmqURI := env.GetString("RABBITMQ_URI", "amqp://guest:guest@rabbitmq:5672/")
 	log.Printf("Connecting to RabbitMQ at %s", rabbitmqURI)
 
-	rabbit, err := messages.NewRabbitMQ(rabbitmqURI)
+	rabbitmq, err := messages.NewRabbitMQ(rabbitmqURI)
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
 	defer func() {
 		log.Println("Closing RabbitMQ connection")
-		rabbit.Close()
+		rabbitmq.Close()
 	}()
 
 	log.Println("Successfully connected to RabbitMQ")
@@ -58,7 +58,7 @@ func main() {
 
 	go func() {
 		log.Println("Starting trip consumer...")
-		if err := events.NewTripConsumer(rabbit, _service).Listen(); err != nil {
+		if err := events.NewTripConsumer(rabbitmq, _service).Listen(); err != nil {
 			log.Printf("Failed to listen to trip created: %v", err)
 			cancel()
 		}
