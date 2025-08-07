@@ -81,7 +81,3 @@ func handleTripStart(w http.ResponseWriter, r *http.Request) {
 
 
 
-func handleDriverRegister(w http.ResponseWriter, r *http.Request) {}
-
-
-func handleDriverUnRegister(w http.ResponseWriter, r *http.Request) {}

@@ -117,12 +117,14 @@ func handleDriversWebSocket(w http.ResponseWriter, r *http.Request, rabbitmq *me
 	}
 
 	for {
-		_, message, err := conn.ReadMessage()
+		// _, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("Error reading message: %v", err)
+
 			break
 		}
 
-		log.Printf("Received message: %s", message)
+
+		// log.Printf("Received message: %s", message)
 	}
 }

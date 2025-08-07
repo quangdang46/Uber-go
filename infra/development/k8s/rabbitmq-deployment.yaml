@@ -17,9 +17,10 @@ spec:
         - name: rabbitmq
           image: rabbitmq:3-management
           ports:
-            - containerPort: 5672 # AMQP port
-            - containerPort: 15672 # Management UI port
-       
+            - name: amqp
+              containerPort: 5672 # AMQP port
+            - name: management
+              containerPort: 15672 # Management UI port
           resources:
             requests:
               memory: "512Mi"
@@ -51,6 +52,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
+
 ---
 apiVersion: v1
 kind: Service

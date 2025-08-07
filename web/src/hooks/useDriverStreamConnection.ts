@@ -46,7 +46,7 @@ export const useDriverStreamConnection = ({
 
     websocket.onmessage = (event) => {
       const message = JSON.parse(event.data) as ServerWsMessage;
-
+      console.log('message from driver', message);
       if (!message || !isValidWsMessage(message)) {
         setError(`Unknown message type "${message}", allowed types are: ${Object.values(TripEvents).join(', ')}`);
         return;

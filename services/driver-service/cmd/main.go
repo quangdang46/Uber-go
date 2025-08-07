@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"ride-sharing/services/driver-service/internal/events"
+	"ride-sharing/services/driver-service/internal/infrastructure/events"
 	grpcHandler "ride-sharing/services/driver-service/internal/grpc"
 	"ride-sharing/services/driver-service/internal/service"
 	"ride-sharing/shared/env"
