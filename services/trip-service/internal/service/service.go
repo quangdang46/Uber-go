@@ -8,23 +8,24 @@ import (
 	"net/http"
 	"ride-sharing/services/trip-service/internal/domain"
 	tripTypes "ride-sharing/services/trip-service/pkg/types"
+	pbDriver "ride-sharing/shared/proto/driver"
 	"ride-sharing/shared/proto/trip"
 	"ride-sharing/shared/types"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type service struct {
+type TripService struct {
 	repo domain.TripRepository
 }
 
-func NewService(repo domain.TripRepository) *service {
-	return &service{
+func NewTripService(repo domain.TripRepository) *TripService {
+	return &TripService{
 		repo: repo,
 	}
 }
 
-func (s *service) CreateTrip(ctx context.Context, fare *domain.RideFareModel) (*domain.TripModel, error) {
+func (s *TripService) CreateTrip(ctx context.Context, fare *domain.RideFareModel) (*domain.TripModel, error) {
 	t := &domain.TripModel{
 		ID:       primitive.NewObjectID(),
 		UserID:   fare.UserID,
@@ -36,7 +37,7 @@ func (s *service) CreateTrip(ctx context.Context, fare *domain.RideFareModel) (*
 	return s.repo.CreateTrip(ctx, t)
 }
 
-func (s *service) GetRoute(ctx context.Context, pickup, destination *types.Coordinate) (*tripTypes.OsrmApiResponse, error) {
+func (s *TripService) GetRoute(ctx context.Context, pickup, destination *types.Coordinate) (*tripTypes.OsrmApiResponse, error) {
 	baseURL := "http://router.project-osrm.org"
 
 	url := fmt.Sprintf(
@@ -70,7 +71,7 @@ func (s *service) GetRoute(ctx context.Context, pickup, destination *types.Coord
 
 }
 
-func (s *service) EstimatePackagesPriceWithRoute(route *tripTypes.OsrmApiResponse) []*domain.RideFareModel {
+func (s *TripService) EstimatePackagesPriceWithRoute(route *tripTypes.OsrmApiResponse) []*domain.RideFareModel {
 	baseFares := getBaseFares()
 
 	estimatedFares := make([]*domain.RideFareModel, len(baseFares))
@@ -82,7 +83,7 @@ func (s *service) EstimatePackagesPriceWithRoute(route *tripTypes.OsrmApiRespons
 	return estimatedFares
 }
 
-func (s *service) GenerateTripFares(ctx context.Context, rideFares []*domain.RideFareModel, userID string, route *tripTypes.OsrmApiResponse) ([]*domain.RideFareModel, error) {
+func (s *TripService) GenerateTripFares(ctx context.Context, rideFares []*domain.RideFareModel, userID string, route *tripTypes.OsrmApiResponse) ([]*domain.RideFareModel, error) {
 	fares := make([]*domain.RideFareModel, len(rideFares))
 	for i, f := range rideFares {
 		id := primitive.NewObjectID()
@@ -144,7 +145,7 @@ func getBaseFares() []*domain.RideFareModel {
 	}
 }
 
-func (s *service) GetAndValidateFare(ctx context.Context, fareID, userID string) (*domain.RideFareModel, error) {
+func (s *TripService) GetAndValidateFare(ctx context.Context, fareID, userID string) (*domain.RideFareModel, error) {
 	fare, err := s.repo.GetRideFareByID(ctx, fareID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trip fare: %w", err)
@@ -160,4 +161,12 @@ func (s *service) GetAndValidateFare(ctx context.Context, fareID, userID string)
 	}
 
 	return fare, nil
+}
+
+func (s *TripService) GetTripByID(ctx context.Context, tripID string) (*domain.TripModel, error) {
+	return s.repo.GetTripByID(ctx, tripID)
+}
+
+func (s *TripService) UpdateTrip(ctx context.Context, tripID, status string, driver *pbDriver.Driver) error {
+	return s.repo.UpdateTrip(ctx, tripID, status, driver)
 }

@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"math/rand"
 	"log"
 	"ride-sharing/services/driver-service/internal/service"
 	"ride-sharing/shared/contracts"
@@ -50,7 +50,9 @@ func (c *TripConsumer) Listen() error {
 
 func (c *TripConsumer) handleFindAndNotifyDriver(ctx context.Context, payload messages.TripEventData) error {
 	suitableIDs := c.service.FindAvailableDrivers(payload.Trip.SelectedFare.PackageSlug)
-	fmt.Println("suitableIDs: ", suitableIDs)
+
+	randomIndex := rand.Intn(len(suitableIDs))
+
 	if len(suitableIDs) == 0 {
 		if err := c.rabbitmq.PublishMessage(ctx, contracts.TripEventNoDriversFound, contracts.AmqpMessage{
 			OwnerID: payload.Trip.UserID,
@@ -60,7 +62,7 @@ func (c *TripConsumer) handleFindAndNotifyDriver(ctx context.Context, payload me
 		return nil
 	}
 
-	suitableDriverID := suitableIDs[0]
+	suitableDriverID := suitableIDs[randomIndex]
 
 	marshalledEvent, err := json.Marshal(payload)
 	if err != nil {

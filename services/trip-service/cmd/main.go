@@ -23,7 +23,7 @@ func main() {
 	log.Println("Starting trip-service...")
 
 	immemRepo := repository.NewInMemRepository()
-	svc := service.NewService(immemRepo)
+	svc := service.NewTripService(immemRepo)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -57,6 +57,7 @@ func main() {
 
 	// starting the gRpc server
 	publisher := events.NewTripEventPublisher(rabbitmq)
+	driverConsumer := events.NewDriverConsumer(rabbitmq, svc)
 
 	grpcServer := grpcserver.NewServer()
 	grpc.NewGRPCHandler(grpcServer, svc, publisher)
@@ -65,6 +66,14 @@ func main() {
 		log.Printf("Starting gRPC server on %s", GrpcAddr)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Printf("Failed to serve gRPC: %v", err)
+			cancel()
+		}
+	}()
+
+	go func() {
+		log.Println("Starting driver consumer")
+		if err := driverConsumer.Listen(); err != nil {
+			log.Printf("Failed to start driver consumer: %v", err)
 			cancel()
 		}
 	}()
