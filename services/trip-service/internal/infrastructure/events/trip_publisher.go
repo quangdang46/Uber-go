@@ -20,10 +20,20 @@ func NewTripEventPublisher(rabbitmq *messages.RabbitMQ) *TripEventPublisher {
 }
 
 func (p *TripEventPublisher) PublishTripCreated(ctx context.Context, trip *domain.TripModel) error {
-	
-	fmt.Println("trip payload: ", trip)
+
+	// Kiểm tra connection health trước khi publish
+	if !p.rabbitmq.IsConnectionHealthy() {
+		fmt.Println("WARNING: RabbitMQ connection is not healthy, cannot publish trip created event")
+		return fmt.Errorf("rabbitmq connection is not healthy")
+	}
+
+	fmt.Printf("TripEventPublisher: Publishing trip with ID: %s (ObjectID: %s)\n", trip.ID.Hex(), trip.ID.String())
+
+	protoTrip := trip.ToProto()
+	fmt.Printf("TripEventPublisher: Proto trip ID: %s\n", protoTrip.Id)
+
 	payload := messages.TripEventData{
-		Trip: trip.ToProto(),
+		Trip: protoTrip,
 	}
 
 	tripEventJSON, err := json.Marshal(payload)
@@ -31,9 +41,16 @@ func (p *TripEventPublisher) PublishTripCreated(ctx context.Context, trip *domai
 		return err
 	}
 
-	return p.rabbitmq.PublishMessage(ctx, contracts.TripEventCreated, contracts.AmqpMessage{
+	err = p.rabbitmq.PublishMessage(ctx, contracts.TripEventCreated, contracts.AmqpMessage{
 		OwnerID: trip.UserID,
 		Data:    tripEventJSON,
 	})
 
+	if err != nil {
+		fmt.Printf("Failed to publish trip created event: %v\n", err)
+		return err
+	}
+
+	fmt.Printf("Successfully published trip created event with ID: %s\n", protoTrip.Id)
+	return nil
 }

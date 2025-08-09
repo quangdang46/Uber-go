@@ -11,17 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
-type paymentService struct {
+type PaymentService struct {
 	paymentProcessor domain.PaymentProcessor
 }
 
 // NewPaymentService creates a new instance of the payment service
-func NewPaymentService() domain.Service {
-	return &paymentService{}
+func NewPaymentService(paymentProcessor domain.PaymentProcessor) domain.Service {
+	return &PaymentService{
+		paymentProcessor: paymentProcessor,
+	}
 }
 
 // CreatePaymentSession creates a new payment session for a trip
-func (s *paymentService) CreatePaymentSession(
+func (s *PaymentService) CreatePaymentSession(
 	ctx context.Context,
 	tripID string,
 	userID string,

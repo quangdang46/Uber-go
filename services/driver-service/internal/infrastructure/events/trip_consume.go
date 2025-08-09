@@ -40,15 +40,17 @@ func (c *TripConsumer) Listen() error {
 		switch msg.RoutingKey {
 		case contracts.TripEventCreated, contracts.TripEventDriverNotInterested:
 			return c.handleFindAndNotifyDriver(ctx, payload)
+		default:
+			log.Printf("Unknown routing key: %s", msg.RoutingKey)
 		}
-
-		log.Println("received message: ", msg.RoutingKey)
 
 		return nil
 	})
 }
 
 func (c *TripConsumer) handleFindAndNotifyDriver(ctx context.Context, payload messages.TripEventData) error {
+	fmt.Printf("DriverService: Received trip request with ID: %s\n", payload.Trip.Id)
+
 	suitableIDs := c.service.FindAvailableDrivers(payload.Trip.SelectedFare.PackageSlug)
 	fmt.Println("suitableIDs: ", suitableIDs)
 	if len(suitableIDs) == 0 {
@@ -61,6 +63,7 @@ func (c *TripConsumer) handleFindAndNotifyDriver(ctx context.Context, payload me
 	}
 
 	suitableDriverID := suitableIDs[0]
+	fmt.Printf("DriverService: Sending trip request to driver %s with trip ID: %s\n", suitableDriverID, payload.Trip.Id)
 
 	marshalledEvent, err := json.Marshal(payload)
 	if err != nil {
@@ -74,5 +77,6 @@ func (c *TripConsumer) handleFindAndNotifyDriver(ctx context.Context, payload me
 		return err
 	}
 
+	fmt.Printf("DriverService: Successfully sent trip request to driver %s\n", suitableDriverID)
 	return nil
 }

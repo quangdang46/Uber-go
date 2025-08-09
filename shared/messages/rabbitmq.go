@@ -47,7 +47,16 @@ func NewRabbitMQ(uri string) (*RabbitMQ, error) {
 
 type MessageHandler func(ctx context.Context, msg amqp.Delivery) error
 
+// IsConnectionHealthy kiểm tra xem connection có sẵn sàng không
+func (r *RabbitMQ) IsConnectionHealthy() bool {
+	return r.conn != nil && !r.conn.IsClosed() && r.Channel != nil
+}
+
 func (r *RabbitMQ) ConsumeMessages(queueName string, handler MessageHandler) error {
+
+	if !r.IsConnectionHealthy() {
+		return fmt.Errorf("rabbitmq connection/channel is not available for consuming")
+	}
 
 	err := r.Channel.Qos(1, 0, false)
 	if err != nil {
@@ -71,9 +80,11 @@ func (r *RabbitMQ) ConsumeMessages(queueName string, handler MessageHandler) err
 		for msg := range msgs {
 			if err := handler(context.Background(), msg); err != nil {
 				log.Printf("failed to handle message: %v", err)
-				continue
+				// NACK message với requeue=false để không requeue infinitely
+				_ = msg.Nack(false, false)
+			} else {
+				_ = msg.Ack(false)
 			}
-			_ = msg.Ack(false)
 		}
 	}()
 
@@ -86,6 +97,11 @@ func (r *RabbitMQ) PublishMessage(ctx context.Context, routingKey string, messag
 	jsonMsg, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %v", err)
+	}
+
+	// Kiểm tra connection trước khi publish
+	if !r.IsConnectionHealthy() {
+		return fmt.Errorf("rabbitmq connection/channel is not available")
 	}
 
 	log.Println("publishing message to ", routingKey)
@@ -141,8 +157,7 @@ func (r *RabbitMQ) setupExchangesAndQueues() error {
 		return fmt.Errorf("failed to bind queue: %v", err)
 	}
 
-
-		err = r.declareAndBindQueue(
+	err = r.declareAndBindQueue(
 		DriverTripResponseQueue,
 		[]string{
 			contracts.DriverCmdTripAccept,
@@ -154,7 +169,6 @@ func (r *RabbitMQ) setupExchangesAndQueues() error {
 	if err != nil {
 		return fmt.Errorf("failed to bind queue: %v", err)
 	}
-
 
 	err = r.declareAndBindQueue(
 		NotifyDriverNoDriversFoundQueue,
@@ -168,7 +182,6 @@ func (r *RabbitMQ) setupExchangesAndQueues() error {
 		return fmt.Errorf("failed to bind queue: %v", err)
 	}
 
-	
 	err = r.declareAndBindQueue(
 		NotifyDriverAssignQueue,
 		[]string{
@@ -181,7 +194,31 @@ func (r *RabbitMQ) setupExchangesAndQueues() error {
 		return fmt.Errorf("failed to bind queue: %v", err)
 	}
 
-	return err
+	if err := r.declareAndBindQueue(
+		PaymentTripResponseQueue,
+		[]string{contracts.PaymentCmdCreateSession},
+		TripExchange,
+	); err != nil {
+		return err
+	}
+
+	if err := r.declareAndBindQueue(
+		NotifyPaymentSessionCreatedQueue,
+		[]string{contracts.PaymentEventSessionCreated},
+		TripExchange,
+	); err != nil {
+		return err
+	}
+
+	if err := r.declareAndBindQueue(
+		NotifyPaymentSuccessQueue,
+		[]string{contracts.PaymentEventSuccess},
+		TripExchange,
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *RabbitMQ) declareAndBindQueue(queueName string, messageType []string, exchange string) error {

@@ -34,6 +34,7 @@ func handleRidersWebSocket(w http.ResponseWriter, r *http.Request, rabbitmq *mes
 	queues := []string{
 		messages.NotifyDriverNoDriversFoundQueue,
 		messages.NotifyDriverAssignQueue,
+		messages.NotifyPaymentSessionCreatedQueue,
 	}
 
 	for _, queue := range queues {
@@ -43,7 +44,6 @@ func handleRidersWebSocket(w http.ResponseWriter, r *http.Request, rabbitmq *mes
 			return
 		}
 	}
-
 
 	for {
 		_, message, err := conn.ReadMessage()
@@ -138,11 +138,6 @@ func handleDriversWebSocket(w http.ResponseWriter, r *http.Request, rabbitmq *me
 
 			break
 		}
-		type DriverMessage struct {
-			Type string          `json:"type"`
-			Data json.RawMessage `json:"data"`
-		}
-
 		var driverMsg contracts.WSDriverMessage
 		if err := json.Unmarshal(message, &driverMsg); err != nil {
 			log.Printf("Error unmarshalling message: %v", err)
@@ -153,6 +148,8 @@ func handleDriversWebSocket(w http.ResponseWriter, r *http.Request, rabbitmq *me
 		case contracts.DriverCmdLocation:
 			continue
 		case contracts.DriverCmdTripAccept, contracts.DriverCmdTripDecline:
+			log.Printf("API Gateway publishing message: Type=%s, UserID=%s", driverMsg.Type, userID)
+			log.Printf("API Gateway message data: %s", string(driverMsg.Data))
 			if err := rabbitmq.PublishMessage(ctx, driverMsg.Type, contracts.AmqpMessage{
 				OwnerID: userID,
 				Data:    driverMsg.Data,
@@ -160,6 +157,7 @@ func handleDriversWebSocket(w http.ResponseWriter, r *http.Request, rabbitmq *me
 				log.Printf("Error publishing message: %v", err)
 				continue
 			}
+			log.Printf("Successfully published message: Type=%s", driverMsg.Type)
 		default:
 			log.Printf("Unknown message type: %s", driverMsg.Type)
 			continue

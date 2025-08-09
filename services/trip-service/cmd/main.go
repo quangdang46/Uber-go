@@ -58,7 +58,7 @@ func main() {
 	// starting the gRpc server
 	publisher := events.NewTripEventPublisher(rabbitmq)
 	driverConsumer := events.NewDriverConsumer(rabbitmq, svc)
-
+	paymentConsumer := events.NewPaymentConsumer(rabbitmq, svc)
 	grpcServer := grpcserver.NewServer()
 	grpc.NewGRPCHandler(grpcServer, svc, publisher)
 
@@ -71,9 +71,18 @@ func main() {
 	}()
 
 	go func() {
-		log.Println("Starting driver consumer")
+		log.Println("Starting driver consumer...")
 		if err := driverConsumer.Listen(); err != nil {
 			log.Printf("Failed to start driver consumer: %v", err)
+			cancel()
+		}
+		log.Println("Driver consumer started successfully")
+	}()
+
+	go func() {
+		log.Println("Starting payment consumer")
+		if err := paymentConsumer.Listen(); err != nil {
+			log.Printf("Failed to start payment consumer: %v", err)
 			cancel()
 		}
 	}()
