@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"ride-sharing/shared/contracts"
+	"ride-sharing/shared/tracing"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -78,13 +79,20 @@ func (r *RabbitMQ) ConsumeMessages(queueName string, handler MessageHandler) err
 
 	go func() {
 		for msg := range msgs {
-			if err := handler(context.Background(), msg); err != nil {
+			if err := tracing.TracedConsumer(msg, func(ctx context.Context, msg amqp.Delivery) error {
+				if err := handler(context.Background(), msg); err != nil {
+					log.Printf("failed to handle message: %v", err)
+					// NACK message với requeue=false để không requeue infinitely
+					_ = msg.Nack(false, false)
+				} else {
+					_ = msg.Ack(false)
+				}
+				return nil
+			}); err != nil {
 				log.Printf("failed to handle message: %v", err)
-				// NACK message với requeue=false để không requeue infinitely
 				_ = msg.Nack(false, false)
-			} else {
-				_ = msg.Ack(false)
 			}
+
 		}
 	}()
 
@@ -104,17 +112,18 @@ func (r *RabbitMQ) PublishMessage(ctx context.Context, routingKey string, messag
 		return fmt.Errorf("rabbitmq connection/channel is not available")
 	}
 
+	msg := amqp.Publishing{
+		ContentType:  "application/json",
+		Body:         jsonMsg,
+		DeliveryMode: amqp.Persistent,
+	}
+
 	log.Println("publishing message to ", routingKey)
-	return r.Channel.PublishWithContext(ctx,
+	return tracing.TracedPublisher(ctx,
 		TripExchange,
 		routingKey,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType:  "application/json",
-			Body:         jsonMsg,
-			DeliveryMode: amqp.Persistent,
-		},
+		msg,
+		r.publish,
 	)
 }
 
@@ -257,4 +266,10 @@ func (r *RabbitMQ) Close() {
 	if r.Channel != nil {
 		r.Channel.Close()
 	}
+}
+
+func (r *RabbitMQ) publish(ctx context.Context, exchange, routingKey string, message amqp.Publishing) error {
+
+	return r.Channel.PublishWithContext(ctx, exchange, routingKey, false, false, message)
+
 }
