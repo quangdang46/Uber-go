@@ -69,7 +69,7 @@ func main() {
 	publisher := events.NewTripEventPublisher(rabbitmq)
 	driverConsumer := events.NewDriverConsumer(rabbitmq, svc)
 	paymentConsumer := events.NewPaymentConsumer(rabbitmq, svc)
-	grpcServer := grpcserver.NewServer()
+	grpcServer := grpcserver.NewServer(tracing.WithTracingInterceptor()...)
 	grpc.NewGRPCHandler(grpcServer, svc, publisher)
 
 	go func() {

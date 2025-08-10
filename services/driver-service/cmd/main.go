@@ -65,7 +65,7 @@ func main() {
 
 	_service := service.NewService()
 	// starting the gRpc server
-	grpcServer := grpcserver.NewServer()
+	grpcServer := grpcserver.NewServer(tracing.WithTracingInterceptor()...)
 	grpcHandler.NewGRPCHandler(grpcServer, _service)
 
 	go func() {
