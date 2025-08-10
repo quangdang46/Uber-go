@@ -12,6 +12,7 @@ import (
 	"ride-sharing/services/trip-service/internal/service"
 	"ride-sharing/shared/env"
 	"ride-sharing/shared/messages"
+	"ride-sharing/shared/tracing"
 	"syscall"
 
 	grpcserver "google.golang.org/grpc"
@@ -20,6 +21,15 @@ import (
 var GrpcAddr = ":9093"
 
 func main() {
+	shutdownJaeger, err := tracing.InitTracer(tracing.Config{
+		ServiceName: "trip-service",
+		Environment: env.GetString("ENVIRONMENT", "development"),
+		JaegerEndpoint: env.GetString("JAEGER_ENDPOINT", "http://jaeger:14268/api/traces"),
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize tracer: %v", err)
+	}
+	defer shutdownJaeger(context.Background())
 	log.Println("Starting trip-service...")
 
 	immemRepo := repository.NewInMemRepository()

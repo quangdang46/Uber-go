@@ -10,12 +10,17 @@ import (
 	"ride-sharing/shared/contracts"
 	"ride-sharing/shared/env"
 	"ride-sharing/shared/messages"
-
+	"ride-sharing/shared/tracing"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/webhook"
 )
 
+var tracer = tracing.GetTracer("api-gateway")
+
 func handleTripPreview(w http.ResponseWriter, r *http.Request) {
+
+	ctx,span:=tracer.Start(r.Context(),"handleTripPreview")
+	defer span.End()
 
 	var reqBody previewTripRequest
 
@@ -43,7 +48,7 @@ func handleTripPreview(w http.ResponseWriter, r *http.Request) {
 
 	defer tripService.Close()
 
-	tripPreview, err := tripService.Client.PreviewTrip(r.Context(), reqBody.toProto())
+	tripPreview, err := tripService.Client.PreviewTrip(ctx, reqBody.toProto())
 
 	if err != nil {
 		log.Printf("Failed to preview a trip: %v", err)
@@ -57,6 +62,10 @@ func handleTripPreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTripStart(w http.ResponseWriter, r *http.Request) {
+
+	ctx,span:=tracer.Start(r.Context(),"handleTripStart")
+	defer span.End()
+
 
 	var startTrip startTripRequest
 
@@ -77,19 +86,22 @@ func handleTripStart(w http.ResponseWriter, r *http.Request) {
 	defer tripService.Close()
 	fmt.Println("start trip", startTrip)
 
-	trip, err := tripService.Client.CreateTrip(r.Context(), startTrip.toProto())
+	trip, err := tripService.Client.CreateTrip(ctx, startTrip.toProto())
 
 	if err != nil {
 		http.Error(w, "Failed to start trip", http.StatusInternalServerError)
 		return
 	}
-
+  
 	response := contracts.APIResponse{Data: trip}
 
 	WriteJSON(w, http.StatusCreated, response)
 }
 
 func handleStripeWebhook(w http.ResponseWriter, r *http.Request, rabbitmq *messages.RabbitMQ) {
+	
+	ctx,span:=tracer.Start(r.Context(),"handleStripeWebhook")
+	defer span.End()
 	body, err := io.ReadAll(r.Body)
 
 	if err != nil {
@@ -143,7 +155,7 @@ func handleStripeWebhook(w http.ResponseWriter, r *http.Request, rabbitmq *messa
 			Data:    jsonPayload,
 		}
 
-		if err := rabbitmq.PublishMessage(r.Context(), contracts.PaymentEventSuccess, message); err != nil {
+		if err := rabbitmq.PublishMessage(ctx, contracts.PaymentEventSuccess, message); err != nil {
 			log.Printf("failed to publish message: %v", err)
 			http.Error(w, "failed to publish message", http.StatusInternalServerError)
 			return
@@ -153,3 +165,4 @@ func handleStripeWebhook(w http.ResponseWriter, r *http.Request, rabbitmq *messa
 		log.Printf("Unhandled stripe event: %s", event.Type)
 	}
 }
+ 
