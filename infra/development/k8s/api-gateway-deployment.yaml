@@ -41,7 +41,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: stripe-secrets
-                  key: stripe-webhook-secret
+                  key: stripe-webhook-key
                 
             - name: JAEGER_ENDPOINT
               valueFrom:

@@ -16,7 +16,7 @@ spec:
         - name: trip-service
           image: europe-west1-docker.pkg.dev/uber-project-468009/ride-sharing/trip-service
           ports:
-            - containerPort: 8083
+            - containerPort: 9093
           resources:
             requests:
               memory: "64Mi"
@@ -24,6 +24,22 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
+          env:
+            - name: RABBITMQ_URI
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: uri
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: uri
+            - name: JAEGER_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: JAEGER_ENDPOINT
+                  name: app-config 
 
 ---
 apiVersion: v1
@@ -34,7 +50,7 @@ spec:
   selector:
     app: trip-service
   ports:
-    - port: 8083
-      name: http
-      targetPort: 8083
+    - port: 9093
+      name: grpc
+      targetPort: 9093
   type: ClusterIP

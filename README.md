@@ -144,7 +144,7 @@ You can either run a `gcloud` command to start a GKE cluster or manually create 
 Connect to your remote cluster and apply the kubernetes manifests.
 
 ```bash
-gcloud container clusters get-credentials ride-sharing --region {REGION}--project {PROJECT_ID}
+gcloud container clusters get-credentials ride-sharing --region {REGION} --project {PROJECT_ID}
 ```
 
 Next, upload each manifest by hand to make sure the correct order is maintained.
