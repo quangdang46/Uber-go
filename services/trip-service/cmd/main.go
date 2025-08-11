@@ -10,6 +10,7 @@ import (
 	"ride-sharing/services/trip-service/internal/infrastructure/grpc"
 	"ride-sharing/services/trip-service/internal/infrastructure/repository"
 	"ride-sharing/services/trip-service/internal/service"
+	"ride-sharing/shared/db"
 	"ride-sharing/shared/env"
 	"ride-sharing/shared/messages"
 	"ride-sharing/shared/tracing"
@@ -22,8 +23,8 @@ var GrpcAddr = ":9093"
 
 func main() {
 	shutdownJaeger, err := tracing.InitTracer(tracing.Config{
-		ServiceName: "trip-service",
-		Environment: env.GetString("ENVIRONMENT", "development"),
+		ServiceName:    "trip-service",
+		Environment:    env.GetString("ENVIRONMENT", "development"),
 		JaegerEndpoint: env.GetString("JAEGER_ENDPOINT", "http://jaeger:14268/api/traces"),
 	})
 	if err != nil {
@@ -32,11 +33,23 @@ func main() {
 	defer shutdownJaeger(context.Background())
 	log.Println("Starting trip-service...")
 
-	immemRepo := repository.NewInMemRepository()
-	svc := service.NewTripService(immemRepo)
+	// immemRepo := repository.NewInMemRepository()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	mongoClient, err := db.NewMongoClient(ctx, db.NewMongoConfig())
+
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer mongoClient.Disconnect(ctx)
+
+	mongoDb := db.GetDatabase(mongoClient, db.NewMongoConfig())
+	log.Println("Connected to MongoDB", mongoDb.Name())
+
+	mongoDBRepo := repository.NewMongoRepository(mongoDb)
+	svc := service.NewTripService(mongoDBRepo)
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
