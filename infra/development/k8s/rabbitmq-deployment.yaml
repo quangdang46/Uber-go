@@ -23,10 +23,10 @@ spec:
               containerPort: 15672 # Management UI port
           resources:
             requests:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "250m"
             limits:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "250m"
           env:
             - name: RABBITMQ_DEFAULT_USER
